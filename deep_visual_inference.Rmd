@@ -208,9 +208,9 @@ attr(lineup_data_roles, "pos")
 
 # Wait, did you just say "judge a plot", as in "classify an image", and the year is >= 2012?
 
-For full code of neural network, including the results and "where things become interesting / wrong" parts, the scatterplot case - see my blog post [Book'em Danno!](http://giorasimchoni.com/2018/02/07/2018-02-07-book-em-danno/) and this [dl_pearson_r_additional_code_to_blog.R]() file in repo
+For full code of neural network, including the results and "where things become interesting / wrong" parts, the scatterplot case - see my blog post [Book'em Danno!](http://giorasimchoni.com/2018/02/07/2018-02-07-book-em-danno/) and this [dl_pearson_r_additional_code_to_blog.R](https://github.com/gsimchoni/BGU_2019/blob/master/dl_pearson_r_additional_code_to_blog.R) file in repo
 
-For full code of neural network, the mosaic case - see this [dl_cramer_v.R]() script in repo.
+For full code of neural network, the mosaic case - see this [dl_cramer_v.R](https://github.com/gsimchoni/BGU_2019/blob/master/dl_cramer_v.R) script in repo.
 
 ```{r SessionInfo}
 sessionInfo()
