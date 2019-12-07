@@ -1,0 +1,217 @@
+---
+title: 'Deep Visual Inference: Teaching Computers To See Rather Than Calculate Correlation'
+author: "Giora Simchoni"
+output: html_notebook
+subtitle: BGU IE&M Dept. Seminar 2019
+datae: December 9th, 2019
+---
+
+```{r Libs}
+library(tidyverse)
+library(ggmosaic)
+library(knitr)
+library(glue)
+library(ggbeeswarm)
+library(scales)
+library(nullabor)
+```
+# Prologue (with OkCupid)
+
+## Ever wondered...
+
+Is there a relation between age and height (say, for adult women)?
+
+```{r Prologue1}
+okcupid <- read_csv("data/okcupid.csv")
+
+okcupid_fil <- okcupid %>%
+  filter(sex == "f", age < 80, between(height, 120, 220))
+
+theme_update(text = element_text(size=18))
+
+okcupid_fil %>%
+  count(age, height) %>%
+  ggplot(aes(age, height)) +
+  geom_point(aes(size = n), color = "blue")
+```
+
+```{r Prologue1-Stat}
+cor.test(okcupid_fil$age, okcupid_fil$height)
+```
+
+Is there a relation between ethnicity and (reported) drug abuse?
+
+```{r Prologue2}
+okcupid <- okcupid %>%
+  mutate(drugs = forcats::fct_relevel(drugs, c("never", "sometimes", "often")),
+         ethnicity = forcats::fct_relevel(ethnicity, c("white", "black", "latin", "asian", "other")))
+ggplot(okcupid) +
+  geom_mosaic(aes(x = product(drugs, ethnicity), fill=drugs), na.rm = TRUE) +
+  labs(x = "", y = "") +
+  guides(fill=FALSE) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+```{r Prologue2-Table}
+library(knitr)
+prop.table(table(okcupid$ethnicity, okcupid$drugs), 1) %>%
+  kable(digits = 2)
+```
+
+```{r Prologue2-Stat}
+chisq.test(table(okcupid$ethnicity, okcupid$drugs))
+
+# Define Cramer's V function (or get it from various packages)
+cramer_v <- function(x) {
+  unname(sqrt(chisq.test(x)$statistic /(sum(x) * (min(nrow(x),ncol(x)) - 1))))
+}
+
+cv <- cramer_v(table(okcupid$ethnicity, okcupid$drugs))
+glue("Cramer's V: {format(cv, digits = 2)}")
+```
+
+Is there a relation between sexual orientation and height?
+
+```{r Prologue3}
+okcupid_fil <- okcupid %>%
+  filter(orientation %in% c("straight", "gay"), between(height, 120, 220))
+
+sex_names <- list(
+  "m" = "men",
+  "f" = "women"
+)
+
+sex_labeller <- function(variable, value){
+  return(sex_names[value])
+}
+
+okcupid_fil %>%
+  sample_n(5000) %>%
+  ggplot(aes(orientation, height, color = orientation)) +
+  geom_quasirandom() +
+  facet_wrap(~ sex, labeller = sex_labeller) +
+  guides(color = FALSE)
+```
+
+```{r Prologue3-Table}
+okcupid_fil %>%
+  group_by(sex, orientation) %>%
+  summarise(mean = mean(height), std = sd(height), n = n()) %>%
+  kable(digits = 1)
+```
+
+```{r Prologue3-Stat}
+okcupid_fil_m <- okcupid_fil %>% filter(sex == "m")
+okcupid_fil_f <- okcupid_fil %>% filter(sex == "f")
+
+t.test(height ~ orientation, data = okcupid_fil_m)
+t.test(height ~ orientation, data = okcupid_fil_f)
+```
+
+```{r Prologue4}
+okcupid_fil <- okcupid %>%
+  filter(income > 0, between(height, 120, 220))
+
+okcupid_fil %>%
+  count(income, height, sex) %>%
+  ggplot(aes(height, income)) +
+  geom_point(aes(size = n), color = "blue") +
+  facet_wrap(~ sex, labeller = sex_labeller) +
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+              labels = trans_format("log10", math_format(10^.x)))
+```
+# Line 'Em Up!
+
+Is there a relation between a car's Engine Displacement and its Horse Power? (n = 32)
+
+```{r Lineup-example1}
+# reading from disk for reproducibility, however you should use the nullabor lineup function
+
+# lineup_data_mtcars <- lineup(null_permute("hp"), mtcars)
+# saveRDS(lineup_data_mtcars, "data/lineup_data_mtcars.RData")
+lineup_data_mtcars <- readRDS("data/lineup_data_mtcars.RData")
+
+theme_update(text = element_text(size=14))
+
+ggplot(lineup_data_mtcars, aes(disp, hp)) +
+  geom_point(color = "blue") +
+  facet_wrap(~ .sample) +
+  labs(title = "Is there a relation between a car's Engine Disp. and HP? (n = 32)")
+```
+
+```{r Lineup-example1-True}
+attr(lineup_data_mtcars, "pos")
+```
+Is there a relation between Gender and Answer? (n = 843)
+
+Q: Is it rude to bring a baby on plane?
+
+```{r Lineup-example2}
+fly2 <- fly %>%
+  mutate(
+    RudeToBringBaby = forcats::fct_recode(RudeToBringBaby, No = "No, not at all rude", Somewhat = "Yes, somewhat rude", Yes = "Yes, very rude"),
+    RudeToRecline = forcats::fct_recode(RudeToRecline, No = "No, not rude at all", Somewhat = "Yes, somewhat rude", Yes = "Yes, very rude"),
+    RudeToBringBaby = forcats::fct_relevel(RudeToBringBaby, c("Yes", "Somewhat", "No")),
+    RudeToRecline = forcats::fct_relevel(RudeToRecline, c("Yes", "Somewhat", "No")))
+
+# reading from disk for reproducibility, however you should use the nullabor lineup function
+
+# lineup_data_fly <- lineup(null_permute("Gender"), fly2)
+# saveRDS(lineup_data_fly, "data/lineup_data_fly.RData")
+lineup_data_fly <- readRDS("data/lineup_data_fly.RData")
+
+theme_update(text = element_text(size=12))
+
+ggplot(lineup_data_fly) +
+  geom_mosaic(aes(x = product(RudeToBringBaby, Gender), fill=RudeToBringBaby), na.rm=TRUE) +
+  labs(x = "", y = "") +
+  scale_fill_ordinal(name = "") +
+  facet_wrap(~ .sample) +
+  labs(title = "Is there a relation between Gender and Answer? (n = 843)",
+       subtitle = "Q: Is it rude to bring a baby on plane?")
+```
+
+```{r Lineup-example2-True}
+attr(lineup_data_fly, "pos")
+```
+
+Is there a relation between an actor's gender and no. of roles since his/her character ended? (n = 129)
+
+```{r Lineup-example3}
+roles_after_char_end <- read_csv("data/roles_after_char_end.csv") %>%
+  select(Gender, n_roles) %>%
+  drop_na()
+
+# reading from disk for reproducibility, however you should use the nullabor lineup function
+
+# lineup_data_roles <- lineup(null_permute("Gender"), roles_after_char_end)
+# saveRDS(lineup_data_roles, "data/lineup_data_roles.RData")
+lineup_data_roles <- readRDS("data/lineup_data_roles.RData")
+
+wrapper <- function(x, ...) 
+{
+  paste(strwrap(x, ...), collapse = "\n")
+}
+
+ggplot(lineup_data_roles, aes(Gender, n_roles, col = Gender)) +
+  geom_beeswarm() +
+  labs(x = "", y = "",
+       caption = "Emmy nominated US drama shows 2000-2014, appeared in at least half the episodes, 4+ years since character end") +
+  guides(color=FALSE) +
+  facet_wrap(~ .sample) +
+  labs(title = wrapper("Is there a relation between an actor's gender and no. of roles since his/her character ended? (n = 129)", width = 80))
+```
+
+```{r Lineup-example3-True}
+attr(lineup_data_roles, "pos")
+```
+
+# Wait, did you just say "judge a plot", as in "classify an image", and the year is >= 2012?
+
+For full code of neural network, including the results and "where things become interesting / wrong" parts, the scatterplot case - see my blog post [Book'em Danno!](http://giorasimchoni.com/2018/02/07/2018-02-07-book-em-danno/) and this [dl_pearson_r_additional_code_to_blog.R]() file in repo
+
+For full code of neural network, the mosaic case - see this [dl_cramer_v.R]() script in repo.
+
+```{r SessionInfo}
+sessionInfo()
+```
